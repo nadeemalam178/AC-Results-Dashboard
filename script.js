@@ -3,22 +3,37 @@ const API =
 
 let allData = [];
 
-fetch(API)
-  .then(r => r.json())
-  .then(data => {
-    allData = data;
+async function loadDashboardData() {
+  let rawData = null;
+  // 1. Try offline-first local data bundle
+  try {
+    const localRes = await fetch("data/election_data.json");
+    if (localRes.ok) {
+      rawData = await localRes.json();
+      console.info("Loaded election data from local offline bundle.");
+    }
+  } catch (err) {
+    console.warn("Local data fetch fallback to live Google Apps Script:", err);
+  }
 
-    const zones =
-      [...new Set(data.map(x => x.zone))];
+  // 2. Fallback to live Google Apps Script endpoint if local data is unavailable
+  if (!rawData) {
+    const res = await fetch(API);
+    rawData = await res.json();
+  }
 
-    const zoneSelect =
-      document.getElementById("zone");
+  const items = Array.isArray(rawData) ? rawData : (rawData.assembly || []);
+  allData = items;
 
-    zones.forEach(z => {
-      zoneSelect.innerHTML +=
-        `<option value="${z}">${z}</option>`;
-    });
+  const zones = [...new Set(items.map(x => x.zone))];
+  const zoneSelect = document.getElementById("zone");
+  zoneSelect.innerHTML = '<option value="">Select Zone</option>';
+  zones.forEach(z => {
+    zoneSelect.innerHTML += `<option value="${z}">${z}</option>`;
   });
+}
+
+loadDashboardData();
 
 document.getElementById("zone")
 .addEventListener("change", function () {
